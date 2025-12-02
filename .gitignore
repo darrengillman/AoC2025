@@ -1,0 +1,15 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Xcode
+xcuserdata/
+*.xcodeproj
+DerivedData/
+*.xcworkspace
+
+# macOS
+.DS_Store
+
+# Dependency lockfile (optional - some people commit this, some don't)
+# Package.resolved
