@@ -122,3 +122,11 @@ extension Int {
       String(self)
    }
 }
+
+extension String {
+   var asInt: Int? {Int(self)}
+}
+
+extension Sequence {
+   var array: [Element] {Array(self)}
+}
