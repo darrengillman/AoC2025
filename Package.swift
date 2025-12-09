@@ -12,6 +12,10 @@ let package = Package(
   name: "AdventOfCode",
   platforms: [.macOS(.v15), .iOS(.v16)],
   dependencies: [
+   .package(
+      url: "https://github.com/darrengillman/AoCTools.git",
+      branch: "main"
+   ),
     .package(
       url: "https://github.com/apple/swift-algorithms.git",
       from: "1.2.0"
@@ -23,10 +27,6 @@ let package = Package(
     .package(
       url: "https://github.com/apple/swift-collections.git",
       from: "1.1.0"
-    ),
-    .package(
-      url: "https://github.com/darrengillman/AoCTools.git",
-      from: "1.0.0"
     ),
     .package(path: "NewDayPlugin"),
   ],

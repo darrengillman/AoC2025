@@ -1,13 +1,13 @@
 {
-  "originHash" : "09af6cd2081f96c430f0ac9fe94cd7fa50c2ba4baa15807b71a65262dc578a79",
+  "originHash" : "e8f7cf296153ab48d7c86a3520bca98e6db70382390bb6352b4d023721e1ad26",
   "pins" : [
     {
       "identity" : "aoctools",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/darrengillman/AoCTools.git",
       "state" : {
-        "revision" : "63f967697292256d5a637113abd8fe03e0781670",
-        "version" : "1.0.6"
+        "branch" : "main",
+        "revision" : "f5cbe844f58922d83cac84469756705f772b1a82"
       }
     },
     {
