@@ -4,6 +4,8 @@
 //
 //  Created by Darren Gillman on 03/01/2025.
 //
+import AoCTools
+
 enum Direction: CaseIterable {
    case U, R, D, L
 }
@@ -48,7 +50,7 @@ extension Dictionary where Key == Point, Value: CustomStringConvertible {
       return lines.joined(separator: "\n")
    }
 }
-
+/*
 struct Point: Equatable, Hashable {
    let x: Int
    let y: Int
@@ -92,7 +94,7 @@ extension Point: CustomStringConvertible {
    var description: String {"(\(x), \(y))"}
 }
 
-
+*/
 enum Heading: CaseIterable, Hashable {
    case N, S, E, W, NE, SE, SW, NW
    
