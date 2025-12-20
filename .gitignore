@@ -13,3 +13,6 @@ DerivedData/
 
 # Dependency lockfile (optional - some people commit this, some don't)
 # Package.resolved
+
+# Advent of Code input data (don't commit puzzle inputs)
+Sources/Data/

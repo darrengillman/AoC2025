@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(swift package resolve:*)",
-      "Bash(swift build:*)"
+      "Bash(swift build:*)",
+      "Bash(cat:*)",
+      "Bash(claude --version:*)"
     ],
     "deny": [],
     "ask": []

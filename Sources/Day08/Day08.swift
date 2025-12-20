@@ -160,11 +160,3 @@ extension Day08 {
       }
    }
 }
-
-extension Int {
-   var double: Double {Double(self)}
-}
-
-extension Double {
-   var int: Int {Int(self)}
-}
