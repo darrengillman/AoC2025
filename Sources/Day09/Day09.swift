@@ -48,22 +48,21 @@ struct Day09: AdventDay, Sendable {
       
       let redOrGreen = generateRedOrGreen(from: allPoints, withPolygon: polygonOutline)
       
-      return vertices
+      let combinations = vertices
          .combinations(ofCount: 2)
          .filter{$0[0] != $0[1]}
-         .filter{ rect in
-            rect
-               .pointsInside()
-               .isSubset(of: redOrGreen)
+         .sorted{$0.volume > $1.volume}
+      
+      var biggest = 0
+      var index = 0
+      
+      while combinations[index].volume > biggest {
+         if combinations[index].allPointsAreIn(redOrGreen) {
+            biggest = combinations[index].volume
          }
-         .map{
-            abs(
-               $0[0].x - $0[1].x + 1
-            ) * abs(
-               $0[0].y - $0[1].y + 1
-            )
-         }
-         .max()!
+         index += 1
+      }      
+      return biggest
    }
    
    func polygonOutline(from vertices: [Point]) -> [Point: String] {
@@ -135,6 +134,14 @@ private extension Dictionary where Key == Point, Value: StringProtocol {
 }
 
 extension Array where Element == Point{
+   var volume: Int {
+      abs(
+         self[0].x - self[1].x + 1
+      ) * abs(
+         self[0].y - self[1].y + 1
+      )
+   }
+   
    func pointsInside() -> Set<Point> {
       guard self.count >= 2 else {return []}
       let xr = self.map(\.x).min()! ... self.map( \.x).max()!
@@ -149,6 +156,37 @@ extension Array where Element == Point{
       
       return inside
    }
+   
+   func allPointsAreIn(_ set: Set<Point>) -> Bool {
+      guard self.count >= 2 else { return false }
+      
+      let p1 = first!
+      let p2 = last!
+         // Quick corner check first
+      
+      let corners = [
+         p1,
+         p2,
+         Point(p1.x, p2.y),
+         Point(p2.x, p1.y)
+      ]
+      
+      for corner in corners {
+         if !set.contains(corner) {
+            return false  // Early exit if any corner is invalid
+         }
+      }
+      
+      let xRange = Swift.min(p1.x, p2.x) ... Swift.max(p1.x, p2.x)
+      let yRange = Swift.min(p1.y, p2.y) ... Swift.max(p1.y, p2.y)
+      
+      for y in yRange {
+         for x in xRange {
+            if !set.contains(Point(x, y)) {
+               return false  // Early exit!
+            }
+         }
+      }
+      return true
+   }
 }
-
-
