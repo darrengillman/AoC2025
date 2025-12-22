@@ -54,19 +54,19 @@ struct Day09Tests {
             #expect(allPoints.count == 70)
          }
          
-         @Test("RedGreen set generation")
-         func testRGGeneration() async throws {
-            let points = day.parse(testInput)
-            let xRange = points.map(\.x).min()!...points.map(\.x).max()!
-            let yRange = points.map(\.y).min()!...points.map(\.y).max()!
-            let allPoints = [Point.init(xRange.lowerBound, yRange.lowerBound), Point.init(xRange.upperBound, yRange.upperBound)]
-               .pointsInside()
-            #expect(allPoints.count == 70)
-            let outline = day.polygonOutline(from: points + [points.first!])
-            #expect(outline.count == 30)
-            let rg = day.generateRedOrGreen(from: allPoints, withPolygon: outline)
-            #expect(rg.count == 46)
-         }
+//         @Test("RedGreen set generation")
+//         func testRGGeneration() async throws {
+//            let points = day.parse(testInput)
+//            let xRange = points.map(\.x).min()!...points.map(\.x).max()!
+//            let yRange = points.map(\.y).min()!...points.map(\.y).max()!
+//            let allPoints = [Point.init(xRange.lowerBound, yRange.lowerBound), Point.init(xRange.upperBound, yRange.upperBound)]
+//               .pointsInside()
+//            #expect(allPoints.count == 70)
+//            let outline = day.polygonOutline(from: points + [points.first!])
+//            #expect(outline.count == 30)
+//            let rg = day.generateRedOrGreen(from: allPoints, withPolygon: outline)
+//            #expect(rg.count == 46)
+//         }
 
       }
       

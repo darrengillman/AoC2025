@@ -37,31 +37,25 @@ struct Day09: AdventDay, Sendable {
    
    func part2() async throws -> Int {
       let vertices = parse(data)
-      
-      let polygonOutline = polygonOutline(from: vertices + [vertices.first!])
 
-      let xRange = vertices.map(\.x).min()!...vertices.map(\.x).max()!
-      let yRange = vertices.map(\.y).min()!...vertices.map(\.y).max()!
-      
-      let allPoints = [Point.init(xRange.lowerBound, yRange.lowerBound), Point.init(xRange.upperBound, yRange.upperBound)]
-         .pointsInside()
-      
-      let redOrGreen = generateRedOrGreen(from: allPoints, withPolygon: polygonOutline)
-      
+      let polygonOutline = polygonOutline(from: vertices + [vertices.first!])
+      let indexedPolygon = IndexedPolygon(outline: polygonOutline)
+
       let combinations = vertices
          .combinations(ofCount: 2)
          .filter{$0[0] != $0[1]}
          .sorted{$0.volume > $1.volume}
-      
+
       var biggest = 0
       var index = 0
-      
+
       while combinations[index].volume > biggest {
-         if combinations[index].allPointsAreIn(redOrGreen) {
-            biggest = combinations[index].volume
+         let pair = combinations[index]
+         if pair.isRectangleInside(indexedPolygon: indexedPolygon) {
+            biggest = pair.volume
          }
          index += 1
-      }      
+      }
       return biggest
    }
    
@@ -96,22 +90,47 @@ struct Day09: AdventDay, Sendable {
          .map{$0.components(separatedBy: ",")}
          .map{Point($0.first!.asInt!, $0.last!.asInt!)}
    }
-   
-   func generateRedOrGreen(from points: Set<Point>, withPolygon outline: [Point: String]) -> Set<Point> {
-      points
-         .reduce(into: Set<Point>()) { set, point in
-            if outline.keys.contains(point) {
-               set.insert(point)
-            } else if outline.isPointInRectilinearPolygon(point: point) {
-               set.insert(point)
-            }
-         }
+}
+
+struct IndexedPolygon {
+   let outline: [Point: String]
+   let pointsByY: [Int: [Point]]  // Pre-grouped by Y coordinate for fast lookup
+
+   init(outline: [Point: String]) {
+      self.outline = outline
+      // Group all outline points by their Y coordinate (done once)
+      self.pointsByY = Dictionary(grouping: outline.keys, by: { $0.y })
    }
 
+   func isPointInside(_ point: Point) -> Bool {
+      // On outline? It's inside
+      if outline.keys.contains(point) { return true }
+
+      guard outline.keys.count >= 4 else { return false }
+
+      var crossings = 0
+
+      // Only check keys at this specific Y level (much faster!)
+      if let keysAtThisY = pointsByY[point.y] {
+         for key in keysAtThisY where key.x > point.x {
+            // Check if this point is part of a vertical edge
+            let hasPointAbove = outline.keys.contains(Point(key.x, key.y + 1))
+            let hasPointBelow = outline.keys.contains(Point(key.x, key.y - 1))
+
+            // Only count if it's part of a vertical edge
+            if hasPointAbove || hasPointBelow {
+               crossings += 1
+            }
+         }
+      }
+
+      return crossings > 0 && crossings.isMultiple(of: 2) == false
+   }
 }
 
 private extension Dictionary where Key == Point, Value: StringProtocol {
    func isPointInRectilinearPolygon(point: Point) -> Bool {
+      if self.keys.contains(point) { return true }
       let n = keys.count
       guard n >= 4 else { return false }
 
@@ -141,52 +160,60 @@ extension Array where Element == Point{
          self[0].y - self[1].y + 1
       )
    }
-   
+
    func pointsInside() -> Set<Point> {
       guard self.count >= 2 else {return []}
       let xr = self.map(\.x).min()! ... self.map( \.x).max()!
       let yr = self.map(\.y).min()! ... self.map( \.y).max()!
       var inside = Set<Point>()
-      
+
       for y in yr {
          for x in xr {
             inside.insert(.init( x, y))
          }
       }
-      
+
       return inside
    }
-   
-   func allPointsAreIn(_ set: Set<Point>) -> Bool {
-      guard self.count >= 2 else { return false }
-      
-      let p1 = first!
-      let p2 = last!
-         // Quick corner check first
-      
-      let corners = [
-         p1,
-         p2,
-         Point(p1.x, p2.y),
-         Point(p2.x, p1.y)
-      ]
-      
-      for corner in corners {
-         if !set.contains(corner) {
-            return false  // Early exit if any corner is invalid
-         }
-      }
-      
-      let xRange = Swift.min(p1.x, p2.x) ... Swift.max(p1.x, p2.x)
-      let yRange = Swift.min(p1.y, p2.y) ... Swift.max(p1.y, p2.y)
-      
+
+   // Check if all points in rectangle are inside polygon without creating Set
+   func isRectangleInside(polygon: [Point: String]) -> Bool {
+      guard self.count == 2 else { return false }
+      let p1 = self[0]
+      let p2 = self[1]
+      let xRange = Swift.min(p1.x, p2.x)...Swift.max(p1.x, p2.x)
+      let yRange = Swift.min(p1.y, p2.y)...Swift.max(p1.y, p2.y)
+
       for y in yRange {
          for x in xRange {
-            if !set.contains(Point(x, y)) {
-               return false  // Early exit!
+            if !polygon.isPointInRectilinearPolygon(point: Point(x, y)) {
+               return false  // Early exit when point is outside
             }
          }
       }
       return true
    }
+
+   // Optimized version using indexed polygon
+   func isRectangleInside(indexedPolygon: IndexedPolygon) -> Bool {
+      guard self.count == 2 else { return false }
+      let p1 = self[0]
+      let p2 = self[1]
+      let xRange = Swift.min(p1.x, p2.x)...Swift.max(p1.x, p2.x)
+      let yRange = Swift.min(p1.y, p2.y)...Swift.max(p1.y, p2.y)
+      
+      let edges = (
+         xRange.map{[Point($0, p1.y), Point($0, p2.y)]}
+         + (yRange).map{[Point(p1.x, $0), Point(p2.x, $0)]}
+      )
+         .flatMap{$0}
+      
+      for point in edges {
+         if !indexedPolygon.isPointInside(point) {
+            return false  // Early exit when point is outside
+         }
+      }
+      return true
+   }
 }
+
