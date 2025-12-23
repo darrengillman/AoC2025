@@ -9,22 +9,14 @@ import AoCTools
 import Algorithms
 
 struct Day09: AdventDay, Sendable {
-      // Save your data in a corresponding text file in the `Data` directory.
    let data: String
    let day = 99
    let puzzleName: String = "--- Day \(day) ---"
-   
-   private enum placement: Equatable {
-      case inside
-      case outside
-   }
-
-   
+      
    init(data: String) {
       self.data = data
    }
    
-      // Replace this with your solution for the first part of the day's challenge.
    func part1() async throws -> Int {
       data
          .components(separatedBy: .newlines)
@@ -51,8 +43,10 @@ struct Day09: AdventDay, Sendable {
          .sorted{$0.volume > $1.volume}
 
       var biggest = 0
+      var index = 0
 
-      for pair in combinations {
+      while combinations[index].volume > biggest {
+         let pair = combinations[index]
          // Generate all 4 corners of the rectangle
          let corners = [
             pair[0],
@@ -62,6 +56,7 @@ struct Day09: AdventDay, Sendable {
          ]
 
          guard corners.allSatisfy({polygon.contains($0)}) else {
+            index += 1
             continue
          }
 
@@ -71,8 +66,9 @@ struct Day09: AdventDay, Sendable {
          }
          
          if !hasIntersection {
-            biggest = max(biggest, pair.volume)
+            biggest = pair.volume
          }
+         index += 1
       }
 
       return biggest
@@ -139,11 +135,7 @@ struct PolygonEdge {
             return false
          }
          
-         if range.overlaps(rectXInnerRange) {
-            return true
-         } else {
-            return false
-         }
+         return range.overlaps(rectXInnerRange)
       }
    }
 }
