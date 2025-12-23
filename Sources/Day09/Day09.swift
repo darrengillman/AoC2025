@@ -14,6 +14,12 @@ struct Day09: AdventDay, Sendable {
    let day = 99
    let puzzleName: String = "--- Day \(day) ---"
    
+   private enum placement: Equatable {
+      case inside
+      case outside
+   }
+
+   
    init(data: String) {
       self.data = data
    }
@@ -37,9 +43,7 @@ struct Day09: AdventDay, Sendable {
    
    func part2() async throws -> Int {
       let vertices = parse(data)
-
-      let polygonOutline = polygonOutline(from: vertices + [vertices.first!])
-      let indexedPolygon = IndexedPolygon(outline: polygonOutline)
+      let polygon = RectilinearPolygon(vertices: vertices + [vertices.first!])
 
       let combinations = vertices
          .combinations(ofCount: 2)
@@ -47,43 +51,33 @@ struct Day09: AdventDay, Sendable {
          .sorted{$0.volume > $1.volume}
 
       var biggest = 0
-      var index = 0
 
-      while combinations[index].volume > biggest {
-         let pair = combinations[index]
-         if pair.isRectangleInside(indexedPolygon: indexedPolygon) {
-            biggest = pair.volume
+      for pair in combinations {
+         // Generate all 4 corners of the rectangle
+         let corners = [
+            pair[0],
+            pair[1],
+            Point(pair[0].x, pair[1].y),
+            Point(pair[1].x, pair[0].y)
+         ]
+
+         guard corners.allSatisfy({polygon.contains($0)}) else {
+            continue
          }
-         index += 1
+
+         // Check if ANY edge passes through rectangle interior
+         let hasIntersection = polygon.edges.contains { edge in
+            edge.intersects(rectangleWith: pair[0], p2: pair[1])
+         }
+         
+         if !hasIntersection {
+            biggest = max(biggest, pair.volume)
+         }
       }
+
       return biggest
    }
-   
-   func polygonOutline(from vertices: [Point]) -> [Point: String] {
-      vertices
-         .windows(ofCount: 2)
-         .reduce(into: [Point: String]() ) { dict, pair in
-            let first = pair.first!
-            let last = pair.last!
-            if first.x == last.x {
-               for c in min(first.y, last.y)...max(first.y, last.y)  {
-                  let point = Point(first.x, c)
-                  if dict[point] == nil {
-                     dict[point] = "G"
-                  }
-               }
-            } else {
-               for c in min(first.x, last.x)...max(first.x, last.x)  {
-                  let point = Point(c, first.y)
-                  if dict[point] == nil {
-                     dict[point] = "G"
-                  }
-               }
-            }
-            dict[first] = "R"
-         }
-   }
-   
+
    func parse(_ str: String) -> [Point] {
       str
          .components(separatedBy: .newlines)
@@ -92,128 +86,119 @@ struct Day09: AdventDay, Sendable {
    }
 }
 
-struct IndexedPolygon {
-   let outline: [Point: String]
-   let pointsByY: [Int: [Point]]  // Pre-grouped by Y coordinate for fast lookup
+struct PolygonEdge {
+   let range: ClosedRange<Int>  // The varying dimension (Y for vertical, X for horizontal)
+   let constantCoordinate: Int   // The fixed dimension (X for vertical, Y for horizontal)
+   let isVertical: Bool
 
-   init(outline: [Point: String]) {
-      self.outline = outline
-      // Group all outline points by their Y coordinate (done once)
-      self.pointsByY = Dictionary(grouping: outline.keys, by: { $0.y })
+   init(from: Point, to: Point) {
+      if from.x == to.x {
+         // Vertical edge - x is constant, y varies
+         self.isVertical = true
+         self.constantCoordinate = from.x
+         self.range = Swift.min(from.y, to.y)...Swift.max(from.y, to.y)
+      } else {
+         // Horizontal edge - y is constant, x varies
+         self.isVertical = false
+         self.constantCoordinate = from.y
+         self.range = Swift.min(from.x, to.x)...Swift.max(from.x, to.x)
+      }
    }
 
-   func isPointInside(_ point: Point) -> Bool {
-      // On outline? It's inside
-      if outline.keys.contains(point) { return true }
+   func intersects(rectangleWith p1: Point, p2: Point) -> Bool {
+      let rectXRange = Swift.min(p1.x, p2.x)...Swift.max(p1.x, p2.x)
+      let rectYRange = Swift.min(p1.y, p2.y)...Swift.max(p1.y, p2.y)
+      
+      if isVertical {
+            // Vertical edge - constantCoordinate is X, range is Y
+            // check if vertical is somewhere inside the rect's horizontal edge =>
+         guard rectXRange.count > 2 && rectYRange.count > 2 else {
+            return false
+         }
+         let rectXInnerRange = rectXRange.lowerBound+1 ... rectXRange.upperBound-1
+         let rectYInnerRange = rectYRange.lowerBound+1 ... rectYRange.upperBound-1
+         guard rectXInnerRange.contains(constantCoordinate) else {
+            return false
+         }
+         
+         if range.overlaps(rectYInnerRange) {
+            return true
+         } else {
+            return false
+         }
+      } else {
+         // Horizontal edge - constantCoordinate is Y, range is X
+         // Check if Y is strictly inside rectangle (not on boundary)
+         guard rectXRange.count > 2 && rectYRange.count > 2 else {
+            return false
+         }
+         let rectXInnerRange = rectXRange.lowerBound+1 ... rectXRange.upperBound-1
+         let rectYInnerRange = rectYRange.lowerBound+1 ... rectYRange.upperBound-1
 
-      guard outline.keys.count >= 4 else { return false }
+         guard rectYInnerRange.contains(constantCoordinate) else {
+            return false
+         }
+         
+         if range.overlaps(rectXInnerRange) {
+            return true
+         } else {
+            return false
+         }
+      }
+   }
+}
 
-      var crossings = 0
+struct RectilinearPolygon {
+   let edges: [PolygonEdge]
+   let vertices: Set<Point>
 
-      // Only check keys at this specific Y level (much faster!)
-      if let keysAtThisY = pointsByY[point.y] {
-         for key in keysAtThisY where key.x > point.x {
-            // Check if this point is part of a vertical edge
-            let hasPointAbove = outline.keys.contains(Point(key.x, key.y + 1))
-            let hasPointBelow = outline.keys.contains(Point(key.x, key.y - 1))
+   init(vertices: [Point]) {
+      var edges: [PolygonEdge] = []
+      for window in vertices.windows(ofCount: 2) {
+         edges.append(PolygonEdge(from: window.first!, to: window.last!))
+      }
+      self.edges = edges
+      self.vertices = Set(vertices)
+   }
 
-            // Only count if it's part of a vertical edge
-            if hasPointAbove || hasPointBelow {
-               crossings += 1
+   // Check if a point is inside or on the polygon using ray casting
+   func contains(_ point: Point) -> Bool {
+      // If it's a vertex, it's on the polygon
+      if vertices.contains(point) {
+         return true
+      }
+
+      // Check if point lies on any edge
+      for edge in edges {
+         if edge.isVertical {
+            // Vertical edge - check if point is on this line
+            if edge.constantCoordinate == point.x && edge.range.contains(point.y) {
+               return true
+            }
+         } else {
+            // Horizontal edge - check if point is on this line
+            if edge.constantCoordinate == point.y && edge.range.contains(point.x) {
+               return true
             }
          }
       }
 
-      return crossings > 0 && crossings.isMultiple(of: 2) == false
-   }
-}
-
-private extension Dictionary where Key == Point, Value: StringProtocol {
-   func isPointInRectilinearPolygon(point: Point) -> Bool {
-      if self.keys.contains(point) { return true }
-      let n = keys.count
-      guard n >= 4 else { return false }
-
+      // Ray casting: count vertical edges to the right
       var crossings = 0
-
-      // Only count vertical edges - check points to the right at same y-level
-      for key in self.keys where key.y == point.y && key.x > point.x {
-         // Check if this point is part of a vertical edge
-         let hasPointAbove = self.keys.contains(Point(key.x, key.y + 1))
-         let hasPointBelow = self.keys.contains(Point(key.x, key.y - 1))
-
-         // Only count if it's part of a vertical edge
-         if hasPointAbove || hasPointBelow {
+      for edge in edges where edge.isVertical {
+         // Only count if edge is to the right and at same Y level
+         if edge.constantCoordinate > point.x && edge.range.contains(point.y) {
             crossings += 1
          }
       }
-
       return crossings > 0 && crossings.isMultiple(of: 2) == false
    }
 }
 
-extension Array where Element == Point{
+extension Array where Element == Point {
    var volume: Int {
-      abs(
-         self[0].x - self[1].x + 1
-      ) * abs(
-         self[0].y - self[1].y + 1
-      )
-   }
-
-   func pointsInside() -> Set<Point> {
-      guard self.count >= 2 else {return []}
-      let xr = self.map(\.x).min()! ... self.map( \.x).max()!
-      let yr = self.map(\.y).min()! ... self.map( \.y).max()!
-      var inside = Set<Point>()
-
-      for y in yr {
-         for x in xr {
-            inside.insert(.init( x, y))
-         }
-      }
-
-      return inside
-   }
-
-   // Check if all points in rectangle are inside polygon without creating Set
-   func isRectangleInside(polygon: [Point: String]) -> Bool {
-      guard self.count == 2 else { return false }
-      let p1 = self[0]
-      let p2 = self[1]
-      let xRange = Swift.min(p1.x, p2.x)...Swift.max(p1.x, p2.x)
-      let yRange = Swift.min(p1.y, p2.y)...Swift.max(p1.y, p2.y)
-
-      for y in yRange {
-         for x in xRange {
-            if !polygon.isPointInRectilinearPolygon(point: Point(x, y)) {
-               return false  // Early exit when point is outside
-            }
-         }
-      }
-      return true
-   }
-
-   // Optimized version using indexed polygon
-   func isRectangleInside(indexedPolygon: IndexedPolygon) -> Bool {
-      guard self.count == 2 else { return false }
-      let p1 = self[0]
-      let p2 = self[1]
-      let xRange = Swift.min(p1.x, p2.x)...Swift.max(p1.x, p2.x)
-      let yRange = Swift.min(p1.y, p2.y)...Swift.max(p1.y, p2.y)
-      
-      let edges = (
-         xRange.map{[Point($0, p1.y), Point($0, p2.y)]}
-         + (yRange).map{[Point(p1.x, $0), Point(p2.x, $0)]}
-      )
-         .flatMap{$0}
-      
-      for point in edges {
-         if !indexedPolygon.isPointInside(point) {
-            return false  // Early exit when point is outside
-         }
-      }
-      return true
+      (abs(self[0].x - self[1].x) + 1) * (abs(self[0].y - self[1].y) + 1)
    }
 }
 
+// 4747200605 wrong

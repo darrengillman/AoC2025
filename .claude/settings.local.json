@@ -4,7 +4,11 @@
       "Bash(swift package resolve:*)",
       "Bash(swift build:*)",
       "Bash(cat:*)",
-      "Bash(claude --version:*)"
+      "Bash(claude --version:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nWIP: Day09 optimization - indexed polygon with edge checking\n\nCurrent state:\n- IndexedPolygon pre-groups outline points by Y coordinate\n- Rectangle validation checks only edge points instead of all interior points\n- Still too slow, about to implement range-based validation\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(swift run:*)",
+      "Bash(swift test:*)"
     ],
     "deny": [],
     "ask": []

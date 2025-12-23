@@ -36,23 +36,23 @@ struct Day09Tests {
             let points = day.parse(testInput)
             #expect(points.count == 8)
          }
-         
-         @Test("Generate Pollygon")
-         func testParsingDay9() async throws {
-            let points = day.parse(testInput)
-            let outline = day.polygonOutline(from: points + [points.first!])
-            #expect(outline.count == 30)
-         }
-         
-         @Test("Generate contained points")
-         func testInsidePoints() async throws {
-            let points = day.parse(testInput)
-            let xRange = points.map(\.x).min()!...points.map(\.x).max()!
-            let yRange = points.map(\.y).min()!...points.map(\.y).max()!
-            let allPoints = [Point.init(xRange.lowerBound, yRange.lowerBound), Point.init(xRange.upperBound, yRange.upperBound)]
-               .pointsInside()
-            #expect(allPoints.count == 70)
-         }
+
+//         @Test("Generate Pollygon")
+//         func testParsingDay9() async throws {
+//            let points = day.parse(testInput)
+//            let outline = day.polygonOutline(from: points + [points.first!])
+//            #expect(outline.count == 30)
+//         }
+//
+//         @Test("Generate contained points")
+//         func testInsidePoints() async throws {
+//            let points = day.parse(testInput)
+//            let xRange = points.map(\.x).min()!...points.map(\.x).max()!
+//            let yRange = points.map(\.y).min()!...points.map(\.y).max()!
+//            let allPoints = [Point.init(xRange.lowerBound, yRange.lowerBound), Point.init(xRange.upperBound, yRange.upperBound)]
+//               .pointsInside()
+//            #expect(allPoints.count == 70)
+//         }
          
 //         @Test("RedGreen set generation")
 //         func testRGGeneration() async throws {
