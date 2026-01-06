@@ -10,6 +10,8 @@
  [...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}
  [.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}
  */
+
+import Algorithms
 import Foundation
 
 struct Day10: AdventDay, Sendable {
@@ -39,26 +41,32 @@ struct Day10: AdventDay, Sendable {
       return total
    }
    
+   func part2() async throws -> Int {
+      let baseMachines = parse(data)
+      return baseMachines.map { $0.solve() }.reduce(0, +)
+   }
+   
 }
 
    // Add any extra code and types in here to separate it from the required behaviour
 extension Day10 {
-   struct Machine: Hashable {
-      enum State: String, CustomStringConvertible {
-         case on = "#"
-         case off = "."
-         
-         var description: String {
-            return switch self {
-               case .on: "#"
-               case .off: "."
-            }
-         }
-         
-         func toggled() -> Self {
-            self == .off ? .on : .off
+   enum State: String, CustomStringConvertible {
+      case on = "#"
+      case off = "."
+      
+      var description: String {
+         return switch self {
+            case .on: "#"
+            case .off: "."
          }
       }
+      
+      func toggled() -> Self {
+         self == .off ? .on : .off
+      }
+   }
+
+   struct Machine: Hashable {
       
       func hash(into hasher: inout Hasher) {
          hasher.combine(state)
@@ -67,14 +75,14 @@ extension Day10 {
       
       let indicatorTarget: [State]
       let joltageTarget: [Int]
-      let buttons: [Set<Int>]
+      let buttons: [[Int]]
       var state: [State]
       var joltages: [Int]
       
       var registersComplete: Bool {state == indicatorTarget}
       var joltageCorrect: Bool {joltageTarget == joltages}
       
-      init(target: [Day10.Machine.State], joltageTarget: [Int], buttons: [Set<Int>], state: [Day10.Machine.State], joltages: [Int] = []) {
+      init(target: [Day10.State], joltageTarget: [Int], buttons: [[Int]], state: [Day10.State], joltages: [Int] = []) {
          self.indicatorTarget = target
          self.joltageTarget = joltageTarget
          self.buttons = buttons
@@ -99,7 +107,6 @@ extension Day10 {
                match.output.1
                   .components(separatedBy: ",")
                   .map{$0.asInt!}
-                  .set
             }
          
          joltageTarget = string
@@ -113,7 +120,6 @@ extension Day10 {
          joltages = Array(repeating: 0, count: joltageTarget.count)
          
       }
-      
       
       func applyingButtons() -> [Machine] {
          buttons.map{ button in
@@ -150,3 +156,192 @@ extension Day10 {
          .map(Machine.init)
    }
 }
+extension Day10.Machine { //for pt2
+   
+   func cartesianProduct(values: [Int], repeatCount: Int) -> [[Int]] {
+      guard repeatCount > 0 else { return [[]] }
+      
+      var result: [[Int]] = [[]]
+      for _ in 0..<repeatCount {
+         var newResult: [[Int]] = []
+         for existing in result {
+            for value in values {
+               newResult.append(existing + [value])
+            }
+         }
+         result = newResult
+      }
+      return result
+   }
+   
+   func patterns(binaryButtons: [[Int]]) -> [[Int]: [[Int]: Int]] {
+      let numButtons = binaryButtons.count
+      let numVariables = binaryButtons[0].count
+      
+      var out: [[Int]: [[Int]: Int]] = [:]
+      
+         // Initialize with all parity patterns
+      for parityPattern in cartesianProduct(values: [0, 1], repeatCount: numVariables) {
+         out[parityPattern] = [:]
+      }
+      
+      for numPressedButtons in 0...numButtons {
+         for buttons in (0..<numButtons).combinations(ofCount: numPressedButtons) {
+               // Calculate pattern by summing coefficients
+            var pattern = Array(repeating: 0, count: numVariables)
+            for button in buttons {
+               for j in 0..<numVariables {
+                  pattern[j] += binaryButtons[button][j]
+               }
+            }
+            
+               // Calculate parity pattern
+            let parityPattern = pattern.map { $0 % 2 }
+            
+            if out[parityPattern]![pattern] == nil {
+               out[parityPattern]![pattern] = numPressedButtons
+            }
+         }
+      }
+      
+      return out
+   }
+   
+   
+   
+   
+   func solveSingle(buttons: [[Int]], target: [Int]) -> Int {
+      var cache: [[Int]: Int] = [:]
+      
+      let bButs = buttons.map { r in
+         (0..<joltageTarget.count).map { i in r.contains(i) ? 1 : 0 }
+      }
+      
+      let patternCosts = patterns(binaryButtons: bButs)
+      
+      func solveSingleAux(target: [Int]) -> Int {
+         guard cache[target] == nil else {
+            return cache[target]!
+         }
+         
+         guard !target.allSatisfy({ $0 == 0 }) else {
+            return 0
+         }
+         
+         var answer = 1_000_000
+         let parityPattern = target.map { $0 % 2 }
+         
+         if let patterns = patternCosts[parityPattern] {
+            for (pattern, patternCost) in patterns {
+                  // Check if pattern[i] <= goal[i] for all i
+               let valid = zip(pattern, target).allSatisfy { $0 <= $1 }
+               
+               if valid {
+                  let newGoal = zip(pattern, target).map { (i, j) in (j - i) / 2 }
+                  let subAnswer = solveSingleAux(target: newGoal)
+                  answer = min(answer, patternCost + 2 * subAnswer)
+               }
+            }
+         }
+         
+         cache[target] = answer
+         return answer
+      }
+
+      
+
+      return solveSingleAux(target: target)
+      
+      
+      
+   }
+   
+   func solve() -> Int {
+
+      
+      return solveSingle(buttons: buttons, target: joltageTarget)
+
+   }
+}
+
+//
+//extension Day10 {
+//      // MARK: - Main Logic
+//   
+//   func patterns(coeffs: [[Int]]) -> [[Int]: [[Int]: Int]] {
+//      let numButtons = coeffs.count
+//      let numVariables = coeffs[0].count
+//      
+//      var out: [[Int]: [[Int]: Int]] = [:]
+//      
+//         // Initialize with all parity patterns
+//      for parityPattern in product(repeatElement([0, 1], count: numVariables), 1) {
+//         out[Array(parityPattern)] = [:]
+//      }
+//      
+//      for numPressedButtons in 0...numButtons {
+//         for buttons in (0..<numButtons).combinations(ofCount: numPressedButtons) {
+//               // Calculate pattern by summing coefficients
+//            var pattern = Array(repeating: 0, count: numVariables)
+//            for button in buttons {
+//               for j in 0..<numVariables {
+//                  pattern[j] += coeffs[button][j]
+//               }
+//            }
+//            
+//               // Calculate parity pattern
+//            let parityPattern = pattern.map { $0 % 2 }
+//            
+//            if out[parityPattern]![pattern] == nil {
+//               out[parityPattern]![pattern] = numPressedButtons
+//            }
+//         }
+//      }
+//      
+//      return out
+//   }
+//   
+//   func solveSingle(coeffs: [[Int]], goal: [Int]) -> Int {
+//      let patternCosts = patterns(coeffs: coeffs)
+//      var cache: [[Int]: Int] = [:]
+//      
+//      func solveSingleAux(goal: [Int]) -> Int {
+//            // Check cache
+//         if let cached = cache[goal] {
+//            return cached
+//         }
+//         
+//            // Base case
+//         if goal.allSatisfy({ $0 == 0 }) {
+//            return 0
+//         }
+//         
+//         var answer = 1_000_000
+//         let parityPattern = goal.map { $0 % 2 }
+//         
+//         if let patterns = patternCosts[parityPattern] {
+//            for (pattern, patternCost) in patterns {
+//                  // Check if pattern[i] <= goal[i] for all i
+//               let valid = zip(pattern, goal).allSatisfy { $0 <= $1 }
+//               
+//               if valid {
+//                  let newGoal = zip(pattern, goal).map { (i, j) in (j - i) / 2 }
+//                  let subAnswer = solveSingleAux(goal: newGoal)
+//                  answer = min(answer, patternCost + 2 * subAnswer)
+//               }
+//            }
+//         }
+//         
+//         cache[goal] = answer
+//         return answer
+//      }
+//      
+//      return solveSingleAux(goal: goal)
+//   }
+//   
+//   
+//      // Usage:
+//      // let input = try! String(contentsOfFile: "input.txt")
+//      // solve(raw: input)
+//}
+//
